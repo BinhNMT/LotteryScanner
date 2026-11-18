@@ -10,6 +10,7 @@ from typing import Iterator
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DB_PATH: Path = _PROJECT_ROOT / "lottery_latest.db"
 DEFAULT_SCHEMA_PATH: Path = _PROJECT_ROOT / "schema.sql"
+DEFAULT_EXPORT_JSON_PATH: Path = _PROJECT_ROOT / "lottery_latest.json"
 
 
 def open_lottery_db(

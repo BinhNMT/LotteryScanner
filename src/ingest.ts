@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import type Database from "better-sqlite3";
 import { openLotteryDb } from "./db.js";
 import { XSMN_PROVINCES, type XsmnProvinceCode } from "./provinces.js";
+import { DEFAULT_EXPORT_JSON_PATH, exportLatestResultsToJson } from "./queries.js";
 import type { LotterySyncInput, XsmnPrizes } from "./types.js";
 
 /**
@@ -46,6 +47,20 @@ export function syncLatestLotteryResults(
   });
 
   return runBatch(results);
+}
+
+/**
+ * Overwrites latest lottery results in SQLite and immediately exports
+ * the full database snapshot to JSON for static web UI consumption.
+ */
+export function syncAndExportLatestLotteryResults(
+  db: Database.Database,
+  results: LotterySyncInput[],
+  outputPath: string = DEFAULT_EXPORT_JSON_PATH
+): { syncedCount: number; exportPath: string } {
+  const syncedCount = syncLatestLotteryResults(db, results);
+  const exportPath = exportLatestResultsToJson(db, outputPath);
+  return { syncedCount, exportPath };
 }
 
 /**
@@ -112,8 +127,12 @@ if (isMain) {
       prizes: buildSamplePrizes(index),
     }));
 
-    const count = syncLatestLotteryResults(db, allProvincesBatch);
-    console.log(`Synced ${count} province(s) into latest_lottery_results.`);
+    const { syncedCount, exportPath } = syncAndExportLatestLotteryResults(
+      db,
+      allProvincesBatch
+    );
+    console.log(`Synced ${syncedCount} province(s) into latest_lottery_results.`);
+    console.log(`Exported JSON snapshot to ${exportPath}.`);
   } finally {
     db.close();
   }

@@ -14,6 +14,7 @@ from lotto_store import (
     count_results,
     delete_result_by_province,
     delete_results_by_date,
+    export_results_to_json,
     get_all_results,
     get_result_by_province,
     lottery_db_session,
@@ -149,6 +150,44 @@ class TestLottoStore(unittest.TestCase):
                 giai1=("44556",),
                 dac_biet=("004192",),
             )
+
+    def test_export_results_to_json_and_auto_export_on_sync(self) -> None:
+        json_path = Path(self._tmp_dir.name) / "nested" / "lottery_latest.json"
+
+        sync_results(
+            [
+                LotterySyncInput("TPHCM", "2026-11-16", _sample_prizes(g8="05", dac_biet="004192")),
+                LotterySyncInput("BT", "2026-11-17", _sample_prizes(g8="09", dac_biet="012345")),
+            ],
+            db_path=self.db_path,
+            export_json_path=json_path,
+        )
+
+        self.assertTrue(json_path.exists())
+        payload = json.loads(json_path.read_text(encoding="utf-8"))
+        self.assertIn("exportedAt", payload)
+        self.assertEqual(payload["totalProvinces"], 2)
+        self.assertEqual([item["provinceCode"] for item in payload["results"]], ["BT", "TPHCM"])
+
+        bt = payload["results"][0]
+        self.assertEqual(bt["provinceName"], "Bến Tre")
+        self.assertEqual(bt["drawDays"], [2])
+        self.assertEqual(bt["drawDate"], "2026-11-17")
+        self.assertEqual(bt["prizes"]["giai8"], ["09"])
+        self.assertEqual(bt["prizes"]["dacBiet"], ["012345"])
+
+        # Direct export_results_to_json after upsert
+        upsert_result(
+            LotterySyncInput("DT", "2026-11-16", _sample_prizes(g8="12", dac_biet="123405")),
+            db_path=self.db_path,
+        )
+        export_results_to_json(json_path, db_path=self.db_path)
+        updated_payload = json.loads(json_path.read_text(encoding="utf-8"))
+        self.assertEqual(updated_payload["totalProvinces"], 3)
+        self.assertEqual(
+            [item["provinceCode"] for item in updated_payload["results"]],
+            ["BT", "DT", "TPHCM"],
+        )
 
 
 if __name__ == "__main__":

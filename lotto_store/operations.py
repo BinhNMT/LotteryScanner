@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
+import os
 from pathlib import Path
 import sqlite3
+import tempfile
 from typing import Any, Callable, Literal, Mapping, Sequence, TypeVar
 
-from .db import lottery_db_session
+from .db import DEFAULT_EXPORT_JSON_PATH, lottery_db_session
 from .models import LatestLotteryResult, LotterySyncInput, validate_draw_date
 from .provinces import XSMN_PROVINCE_MAP, normalize_province_code
 
@@ -58,11 +61,13 @@ def sync_results(
     *,
     db_path: str | Path | None = None,
     conn: sqlite3.Connection | None = None,
+    export_json_path: str | Path | None = None,
 ) -> int:
     """Atomically overwrite the latest lottery state for one or more provinces.
 
     Uses `INSERT OR REPLACE` inside a single SQLite transaction so each
-    `province_code` retains at most one latest row.
+    `province_code` retains at most one latest row. When `export_json_path`
+    is provided, exports the full database to JSON after committing.
     """
     normalized_items = [_coerce_sync_input(item) for item in items]
     if not normalized_items:
@@ -77,6 +82,8 @@ def sync_results(
     def _op(c: sqlite3.Connection) -> int:
         with c:
             c.executemany(_UPSERT_SQL, rows)
+        if export_json_path is not None:
+            export_results_to_json(export_json_path, conn=c)
         return len(rows)
 
     return _run_with_connection(conn, db_path, _op)
@@ -87,6 +94,7 @@ def upsert_result(
     *,
     db_path: str | Path | None = None,
     conn: sqlite3.Connection | None = None,
+    export_json_path: str | Path | None = None,
 ) -> LatestLotteryResult:
     """Write or overwrite a single province's latest result and return the stored record."""
     normalized = _coerce_sync_input(item)
@@ -103,6 +111,8 @@ def upsert_result(
                     now_iso,
                 ),
             )
+        if export_json_path is not None:
+            export_results_to_json(export_json_path, conn=c)
         return LatestLotteryResult(
             province_code=normalized.province_code,
             draw_date=normalized.draw_date,
@@ -323,3 +333,67 @@ def clear_all_results(
             return cursor.rowcount
 
     return _run_with_connection(conn, db_path, _op)
+
+
+# ---------------------------------------------------------------------------
+# Export (Static Web UI JSON)
+# ---------------------------------------------------------------------------
+
+
+def build_export_payload(
+    results: Sequence[LatestLotteryResult],
+    *,
+    exported_at: str | None = None,
+) -> dict[str, Any]:
+    """Build a static-UI-friendly JSON payload from `LatestLotteryResult` records."""
+    items: list[dict[str, Any]] = []
+    for row in results:
+        meta = XSMN_PROVINCE_MAP.get(row.province_code)
+        items.append(
+            {
+                "provinceCode": row.province_code,
+                "provinceName": meta.name if meta is not None else row.province_code,
+                "drawDays": list(meta.draw_days) if meta is not None else [],
+                "drawDate": row.draw_date,
+                "updatedAt": row.updated_at,
+                "prizes": row.prizes.to_dict(),
+            }
+        )
+
+    return {
+        "exportedAt": exported_at or _utc_now_iso(),
+        "totalProvinces": len(items),
+        "results": items,
+    }
+
+
+def export_results_to_json(
+    output_path: str | Path | None = None,
+    *,
+    db_path: str | Path | None = None,
+    conn: sqlite3.Connection | None = None,
+    indent: int | None = 2,
+) -> Path:
+    """Export the entire `latest_lottery_results` table atomically to a JSON file."""
+    target = DEFAULT_EXPORT_JSON_PATH if output_path is None else Path(output_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    results = get_all_results(db_path=db_path, conn=conn)
+    payload = build_export_payload(results)
+    serialized = json.dumps(payload, ensure_ascii=False, indent=indent) + "\n"
+
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+        dir=str(target.parent),
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(serialized)
+        os.replace(tmp_name, target)
+    except BaseException:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
+        raise
+
+    return target

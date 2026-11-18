@@ -36,3 +36,14 @@ export interface LatestLotteryResult {
   updatedAt: string;
 }
 
+export interface ExportedLotteryResult extends LatestLotteryResult {
+  provinceName: string;
+  drawDays: readonly number[];
+}
+
+export interface LotteryExportPayload {
+  exportedAt: string;
+  totalProvinces: number;
+  results: ExportedLotteryResult[];
+}
+
