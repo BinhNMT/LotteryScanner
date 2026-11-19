@@ -44,6 +44,11 @@ Lotto/
 │   ├── operations.py    # CRUD + query_results + build_export_payload, export_results_to_json
 │   └── scraper.py       # Fetch & parse HTML từ xsmn.mobi, sync SQLite và tự động export JSON
 ├── sync_xsmn.py         # CLI entrypoint chạy đồng bộ kết quả XSMN từ xsmn.mobi
+├── index.html           # Giao diện Web UI tĩnh (MVP v1.0) dò vé số XSMN
+├── web/                 # Tài nguyên frontend (ES Modules & CSS, không cần build step)
+│   ├── app.js           # Tải lottery_latest.json, quản lý form & render bảng kết quả
+│   ├── checker.js       # Logic dò vé số 6 chữ số chuẩn XSMN (Giải 8 → Đặc Biệt, Phụ ĐB, Khuyến Khích)
+│   └── styles.css       # Giao diện responsive và highlight số trúng thưởng
 └── tests/
     ├── test_lotto_store.py # Unit tests cho tầng interface Python & JSON export
     └── test_scraper.py     # Unit tests cho HTML parser, luồng sync & auto-export JSON
