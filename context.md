@@ -44,6 +44,9 @@ Lotto/
 │   ├── operations.py    # CRUD + query_results + build_export_payload, export_results_to_json
 │   └── scraper.py       # Fetch & parse HTML từ xsmn.mobi, sync SQLite và tự động export JSON
 ├── sync_xsmn.py         # CLI entrypoint chạy đồng bộ kết quả XSMN từ xsmn.mobi
+├── .github/
+│   └── workflows/
+│       └── sync-xsmn.yml # GitHub Actions cron chạy đồng bộ định kỳ lúc 17:00 ICT (10:00 UTC)
 ├── index.html           # Giao diện Web UI tĩnh (MVP v1.0) dò vé số XSMN
 ├── web/                 # Tài nguyên frontend (ES Modules & CSS, không cần build step)
 │   ├── app.js           # Tải lottery_latest.json, quản lý form & render bảng kết quả
@@ -67,6 +70,7 @@ Lotto/
 - **`lotto_store/operations.py`**: Bộ interface Đọc–Ghi–Truy vấn–Xóa (`upsert_result`, `sync_results`, `get_all_results`, `get_result_by_province`, `count_results`, `query_results`, `delete_result_by_province`, `delete_results_by_date`, `clear_all_results`) và export JSON tĩnh (`build_export_payload`, `export_results_to_json`). Hỗ trợ gọi hàm trực tiếp (tự mở/đóng DB) hoặc truyền `conn=` để tái sử dụng kết nối.
 - **`lotto_store/scraper.py`**: Module thu thập và parse kết quả XSMN từ `https://xsmn.mobi/` bằng `urllib.request` và `html.parser` (`fetch_xsmn_html`, `parse_xsmn_mobi_html`, `sync_from_xsmn_mobi`). Tự động ánh xạ `data-pcode` (bao gồm `hcm` → `TPHCM`), giữ ngày quay mới nhất khi một đài xuất hiện nhiều lần, bỏ qua đài đang quay dở dang, hỗ trợ `only_if_newer` / `--dry-run` / `--force`, và tự động export toàn bộ DB ra `lottery_latest.json` (hoặc `--export-json` / `--no-export`) sau khi cập nhật xong.
 - **`sync_xsmn.py`**: Script CLI ở thư mục gốc gọi `lotto_store.scraper.main()` để đồng bộ nhanh dữ liệu vào `lottery_latest.db`.
+- **`.github/workflows/sync-xsmn.yml`**: GitHub Actions workflow chạy tự động hằng ngày lúc `17:00` giờ Việt Nam (`10:00 UTC`), hỗ trợ `workflow_dispatch`, thực thi `python sync_xsmn.py`, chạy unit tests và tự động commit/push `lottery_latest.db` cùng `lottery_latest.json` nếu có thay đổi.
 - **`index.html` & `web/`**: Giao diện Web UI tĩnh (MVP v1.0) đọc trực tiếp `lottery_latest.json` qua HTTP (không cần build step):
   - `index.html`: Cấu trúc trang gồm form dò vé (nhập mã số dự thưởng 6 chữ số, chọn tỉnh/thành XSMN, chọn ngày xổ số) và bảng kết quả mở thưởng.
   - `web/checker.js`: Logic dò vé 6 chữ số chuẩn XSMN (`checkXsmnTicket`, `PRIZE_ROWS`), hỗ trợ Giải Tám → Đặc Biệt, Giải Phụ Đặc Biệt và Giải Khuyến Khích.
@@ -100,7 +104,8 @@ Lotto/
 - **Hoàn thành tầng Interface Python (`lotto_store/`):** Đã triển khai đầy đủ các hàm Đọc–Ghi–Truy vấn–Xóa trong `lotto_store/operations.py`, hỗ trợ lọc 2 tầng (SQLite + Python) và tương thích hoàn toàn với `schema.sql` / JSON của TypeScript.
 - **Hoàn thành Crawler, HTML Parser & Auto-Export JSON (`lotto_store/scraper.py`, `sync_xsmn.py`):** Đã triển khai bộ parse HTML từ `https://xsmn.mobi/` thuần Python stdlib, đồng bộ thực tế thành công **21/21 đài** vào `lottery_latest.db`, và tự động export atomic toàn bộ DB ra `lottery_latest.json` (gồm `exportedAt`, `totalProvinces`, `results` kèm `provinceName`, `drawDays`, `drawDate`, `updatedAt`, `prizes`) sau khi cập nhật xong. Đã kiểm thử toàn bộ với `python -m unittest discover -s tests -v` (8/8 tests passed).
 - **Hoàn thành Web UI tĩnh — MVP v1.0 (`index.html`, `web/`):** Đã xây dựng giao diện dò vé số XSMN đọc trực tiếp từ `lottery_latest.json`, gồm ô nhập mã số dự thưởng 6 chữ số (giữ số `0` ở đầu), ô chọn 21 tỉnh/thành XSMN, ô chọn ngày xổ số (tự động đồng bộ kỳ quay mới nhất và gợi ý các đài theo ngày), logic dò đầy đủ Giải Tám → Đặc Biệt + Phụ Đặc Biệt + Khuyến Khích, và bảng kết quả tự động highlight số trúng.
-- **Bước tiếp theo:** Tích hợp lịch chạy đồng bộ tự động định kỳ cho `sync_xsmn.py`, bổ sung kiểm thử tự động cho logic frontend (`web/checker.js`), hoặc mở rộng tính năng cho các phiên bản sau MVP v1.0.
+- **Hoàn thành lịch chạy đồng bộ định kỳ (`.github/workflows/sync-xsmn.yml`):** Đã thiết lập GitHub Actions cron chạy hằng ngày lúc `17:00` ICT (`0 10 * * *` UTC) và hỗ trợ chạy thủ công (`workflow_dispatch`) để cập nhật `lottery_latest.db` và `lottery_latest.json`.
+- **Bước tiếp theo:** Bổ sung kiểm thử tự động cho logic frontend (`web/checker.js`), triển khai tĩnh (ví dụ GitHub Pages) hoặc mở rộng tính năng cho các phiên bản sau MVP v1.0.
 - **Môi trường chạy:** Python 3.15.2 đã khả dụng và chạy test thành công; `node` và `npm` chưa khả dụng trong shell môi trường hiện tại, nên chưa chạy `npm install`, `npm run build` hay `npm run ingest`.
 
 ### Quy tắc cần tuân thủ trong các bước tiếp theo

@@ -1,0 +1,41 @@
+name: Sync XSMN Latest Results
+
+on:
+  schedule:
+    # 17:00 Asia/Ho_Chi_Minh (UTC+7) == 10:00 UTC
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run XSMN sync
+        run: python sync_xsmn.py
+
+      - name: Run Python unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lottery_latest.db lottery_latest.json
+          if git diff --cached --quiet; then
+            echo "No changes to lottery_latest.db or lottery_latest.json."
+          else
+            git commit -m "chore(data): sync XSMN latest results ($(date -u +'%Y-%m-%d'))"
+            git push
+          fi
