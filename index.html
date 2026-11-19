@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dò Vé Số Kiến Thiết Miền Nam (XSMN)</title>
+  <link rel="stylesheet" href="./web/styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <div class="header-badge">XSMN • Dữ liệu kỳ quay mới nhất</div>
+      <h1>Dò Vé Số Kiến Thiết Miền Nam</h1>
+      <p class="subtitle">
+        Tra cứu kết quả và kiểm tra vé dự thưởng 6 chữ số cho 21 đài XSMN từ dữ liệu mới nhất.
+      </p>
+      <div class="meta-bar" id="data-meta" aria-live="polite">
+        Đang tải dữ liệu kết quả...
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <section class="card form-card" aria-labelledby="checker-heading">
+        <h2 id="checker-heading" class="card-title">Thông tin dò vé</h2>
+
+        <form id="check-form" class="check-form" novalidate>
+          <div class="field-group">
+            <label for="ticket-number">Mã số dự thưởng (6 chữ số)</label>
+            <div class="input-with-action">
+              <input
+                id="ticket-number"
+                name="ticketNumber"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
+                maxlength="6"
+                autocomplete="off"
+                placeholder="Ví dụ: 291634"
+                required
+              />
+              <button type="button" id="clear-ticket-btn" class="ghost-btn" title="Xóa số vé">
+                Xóa
+              </button>
+            </div>
+            <p class="field-hint">Nhập đủ 6 chữ số in trên tờ vé (giữ nguyên số 0 ở đầu).</p>
+          </div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label for="province-select">Tỉnh / Thành phố (Đài XSMN)</label>
+              <select id="province-select" name="provinceCode" required>
+                <option value="">Đang tải danh sách đài...</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label for="draw-date">Ngày xổ số</label>
+              <input id="draw-date" name="drawDate" type="date" required />
+            </div>
+          </div>
+
+          <div id="date-province-chips" class="chips-container" hidden>
+            <span class="chips-label">Đài có kết quả ngày này:</span>
+            <div id="chips-list" class="chips-list"></div>
+          </div>
+
+          <div id="form-error" class="alert alert-error" role="alert" hidden></div>
+
+          <div class="form-actions">
+            <button type="submit" id="check-btn" class="primary-btn">
+              Dò kết quả ngay
+            </button>
+          </div>
+        </form>
+
+        <div id="check-result" class="result-panel" aria-live="polite" hidden></div>
+      </section>
+
+      <section class="card board-card" aria-labelledby="board-heading">
+        <div class="board-header">
+          <div>
+            <h2 id="board-heading" class="card-title">Bảng kết quả mở thưởng</h2>
+            <p id="board-subtitle" class="board-subtitle">Chọn tỉnh/thành để xem chi tiết</p>
+          </div>
+          <span id="board-date-badge" class="date-badge" hidden></span>
+        </div>
+
+        <div id="board-notice" class="alert alert-warning" hidden></div>
+
+        <div class="table-wrap">
+          <table class="prize-table" id="prize-table">
+            <tbody id="prize-table-body">
+              <tr>
+                <td class="empty-cell" colspan="2">Đang tải bảng kết quả...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        Lưu ý: Hệ thống chỉ lưu trạng thái kỳ quay mới nhất cho từng đài (<code>lottery_latest.json</code>).
+        Kết quả mang tính chất tham khảo, vui lòng đối chiếu với vé gốc và thông báo chính thức của công ty XSKT.
+      </p>
+    </footer>
+  </div>
+
+  <script type="module" src="./web/app.js"></script>
+</body>
+</html>
